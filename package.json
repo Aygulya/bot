@@ -1,0 +1,25 @@
+{
+  "name": "tg-shop-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^17.2.3",
+    "google-auth-library": "^10.5.0",
+    "google-spreadsheet": "^5.0.2",
+    "grammy": "^1.39.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
