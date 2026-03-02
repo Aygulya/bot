@@ -3108,380 +3108,1080 @@
 // bot.catch((err) => console.error("BOT ERROR:", err));
 // bot.start();
 // console.log("Bot started");
+// require("dotenv").config();
+// const { Bot, InlineKeyboard, Keyboard, session } = require("grammy");
+// const { GoogleSpreadsheet } = require("google-spreadsheet");
+// const { JWT } = require("google-auth-library");
+
+// /* ===================== CONFIG ===================== */
+// const bot = new Bot(process.env.BOT_TOKEN);
+// const ADMIN_ID = String(process.env.ADMIN_ID || "").trim();
+// const SHEET_ID = String(process.env.SHEET_ID || "").trim();
+// const PRODUCTS_SHEET = process.env.PRODUCTS_SHEET || "products";
+// const ORDERS_SHEET = process.env.ORDERS_SHEET || "orders";
+
+// bot.use(session({ initial: () => ({ prepayOrderId: null }) }));
+
+// /* ===================== UTILS ===================== */
+// const s = (x) => String(x ?? "").trim();
+// const normalizePhone = (input) => String(input ?? "").replace(/\D/g, "");
+// const isValidPhoneDigits = (digits) => /^\d{9,15}$/.test(digits);
+// const rub = (n) => {
+//     const num = Number(String(n).replace(",", "."));
+//     return Number.isNaN(num) ? `${n} ₽` : `${num.toLocaleString("ru-RU")} ₽`;
+// };
+// const isAdmin = (ctx) => String(ctx.from?.id || "") === ADMIN_ID;
+
+// // Статусы для админа
+// const ADMIN_STATUSES = [
+//     { key: "new", label: "🆕 Новый" },
+//     { key: "contacted", label: "☎️ Связался" },
+//     { key: "prepaid", label: "💳 Предоплата" },
+//     { key: "ordered", label: "📦 Заказано" },
+//     { key: "supplier", label: "🏭 Склад Китай" },
+//     { key: "tk", label: "🚚 Склад ТК" },
+//     { key: "fromChina", label: "✈️ Из Китая" },
+//     { key: "kz", label: "🇰🇿 В КЗ" },
+//     { key: "moscow", label: "🏙 В Москве" },
+//     { key: "delivered", label: "✅ Вручен" },
+// ];
+
+// function mainMenuKeyboard() {
+//     return new Keyboard()
+//         .text("🧩 Индивидуальный заказ").text("🛍 Каталог")
+//         .row()
+//         .text("📦 Мои заказы").text("🧺 Корзина")
+//         .row()
+//         .text("ℹ️ Поддержка")
+//         .resized();
+// }
+
+// /* ===================== GOOGLE AUTH ===================== */
+// function makeAuth() {
+//     const privateKey = (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+//     return new JWT({
+//         email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+//         key: privateKey,
+//         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+//     });
+// }
+
+// async function getDoc() {
+//     const doc = new GoogleSpreadsheet(SHEET_ID, makeAuth());
+//     await doc.loadInfo();
+//     return doc;
+// }
+
+// async function getSheets(doc) {
+//     const productsSheet = doc.sheetsByTitle[PRODUCTS_SHEET];
+//     const ordersSheet = doc.sheetsByTitle[ORDERS_SHEET];
+//     await productsSheet.loadHeaderRow();
+//     await ordersSheet.loadHeaderRow();
+//     return { productsSheet, ordersSheet };
+// }
+
+// /* ===================== DATA & STATE ===================== */
+// const carts = new Map(); 
+// const flowState = new Map(); 
+
+// function getCart(userId) {
+//     if (!carts.has(userId)) carts.set(userId, []);
+//     return carts.get(userId);
+// }
+
+// async function getLastUserInfo(userId) {
+//     try {
+//         const doc = await getDoc();
+//         const { ordersSheet } = await getSheets(doc);
+//         const rows = await ordersSheet.getRows();
+//         const userRows = rows.filter(r => String(r.get("user_id")) === String(userId)).reverse();
+//         if (!userRows.length) return null;
+//         const last = userRows[0];
+//         let vin = "";
+//         const comm = s(last.get("comment"));
+//         if (comm.includes("VIN:")) vin = comm.split("VIN:")[1].split("\n")[0].trim();
+//         return { 
+//             name: s(last.get("customer")), 
+//             phone: s(last.get("phone")), 
+//             address: s(last.get("address")), 
+//             vin: vin 
+//         };
+//     } catch (e) { return null; }
+// }
+
+// /* ===================== ADMIN ACTIONS ===================== */
+// function adminOrderKeyboard(orderId) {
+//     const kb = new InlineKeyboard();
+//     ADMIN_STATUSES.forEach((st, idx) => {
+//         kb.text(st.label, `ast:${st.key}:${orderId}`);
+//         if (idx % 2 !== 0) kb.row();
+//     });
+//     kb.row().text("💰 Ввести предоплату", `aprepay:${orderId}`);
+//     return kb;
+// }
+
+// async function sendAdminCard(orderId) {
+//     if (!ADMIN_ID) return;
+//     const doc = await getDoc();
+//     const { ordersSheet } = await getSheets(doc);
+//     const rows = await ordersSheet.getRows();
+//     const row = rows.find(r => s(r.get("order_id")).includes(orderId));
+//     if (!row) return;
+
+//     const text = `📦 ЗАКАЗ #${orderId}\n` +
+//                  `Клиент: ${row.get("customer")}\n` +
+//                  `Тел: ${row.get("phone")}\n` +
+//                  `Адрес: ${row.get("address")}\n` +
+//                  `Комментарий: ${row.get("comment")}\n\n` +
+//                  `Состав:\n${row.get("items")}\n\n` +
+//                  `Итого: ${row.get("total")}\n` +
+//                  `Статус: ${row.get("admin_status")}\n` +
+//                  `Предоплата: ${row.get("prepayment") || "0"} ₽`;
+    
+//     const msg = await bot.api.sendMessage(ADMIN_ID, text, { reply_markup: adminOrderKeyboard(orderId) });
+//     row.set("admin_msg_id", String(msg.message_id));
+//     await row.save();
+// }
+
+// /* ===================== HANDLERS ===================== */
+
+// bot.command("start", (ctx) => ctx.reply("Приветствуем в магазине автозапчастей!", { reply_markup: mainMenuKeyboard() }));
+
+// // --- КАТАЛОГ С КНОПКАМИ НАЗАД ---
+// bot.hears("🛍 Каталог", async (ctx) => {
+//     const doc = await getDoc();
+//     const { productsSheet } = await getSheets(doc);
+//     const rows = await productsSheet.getRows();
+//     const cats = [...new Set(rows.map(r => r.get("category")).filter(Boolean))];
+//     const kb = new InlineKeyboard();
+//     cats.forEach(c => kb.text(c, `cat:${c}`).row());
+//     ctx.reply("🗂 Выберите категорию:", { reply_markup: kb });
+// });
+
+// bot.callbackQuery("cats", async (ctx) => {
+//     const doc = await getDoc();
+//     const { productsSheet } = await getSheets(doc);
+//     const rows = await productsSheet.getRows();
+//     const cats = [...new Set(rows.map(r => r.get("category")).filter(Boolean))];
+//     const kb = new InlineKeyboard();
+//     cats.forEach(c => kb.text(c, `cat:${c}`).row());
+//     await ctx.editMessageText("🗂 Выберите категорию:", { reply_markup: kb });
+// });
+
+// bot.callbackQuery(/^cat:(.+)$/, async (ctx) => {
+//     const cat = ctx.match[1];
+//     const doc = await getDoc();
+//     const { productsSheet } = await getSheets(doc);
+//     const rows = await productsSheet.getRows();
+//     const kb = new InlineKeyboard();
+//     rows.filter(r => r.get("category") === cat && s(r.get("active")).toUpperCase() === "TRUE").forEach(r => {
+//         kb.text(`${r.get("title")} - ${rub(r.get("price"))}`, `view_p:${r.get("id")}:${cat}`).row();
+//     });
+//     kb.text("⬅️ Назад в категории", "cats");
+//     await ctx.editMessageText(`📦 Товары в категории ${cat}:`, { reply_markup: kb });
+// });
+
+// bot.callbackQuery(/^view_p:(\d+):(.+)$/, async (ctx) => {
+//     const [_, pid, cat] = ctx.match;
+//     const doc = await getDoc();
+//     const { productsSheet } = await getSheets(doc);
+//     const rows = await productsSheet.getRows();
+//     const p = rows.find(r => r.get("id") === pid);
+//     if (!p) return ctx.answerCallbackQuery("Товар не найден");
+
+//     const text = `**${p.get("title")}**\n\n${p.get("description") || ""}\n\nЦена: ${rub(p.get("price"))}`;
+//     const kb = new InlineKeyboard()
+//         .text("➕ В корзину", `add_p:${pid}`)
+//         .row()
+//         .text("⬅️ Назад к товарам", `cat:${cat}`);
+
+//     if (p.get("tg_file_id")) {
+//         await ctx.replyWithPhoto(p.get("tg_file_id"), { caption: text, parse_mode: "Markdown", reply_markup: kb });
+//     } else {
+//         await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: kb });
+//     }
+// });
+
+// bot.callbackQuery(/^add_p:(\d+)$/, async (ctx) => {
+//     const pid = ctx.match[1];
+//     const doc = await getDoc();
+//     const { productsSheet } = await getSheets(doc);
+//     const rows = await productsSheet.getRows();
+//     const p = rows.find(r => r.get("id") === pid);
+//     if (p) {
+//         getCart(ctx.from.id).push({ title: p.get("title"), price: Number(p.get("price")) || 0 });
+//         ctx.answerCallbackQuery({ text: "✅ Добавлено в корзину!" });
+//     }
+// });
+
+// // --- ИНДИВИДУАЛЬНЫЙ ЗАКАЗ ---
+// bot.hears("🧩 Индивидуальный заказ", (ctx) => {
+//     flowState.set(ctx.from.id, { step: "wait_oem", data: {}, type: "custom" });
+//     ctx.reply("Введите OEM номер запчасти (или '-', если не знаете):");
+// });
+
+// // --- КОРЗИНА И ОФОРМЛЕНИЕ ---
+// bot.hears("🧺 Корзина", async (ctx) => {
+//     const cart = getCart(ctx.from.id);
+//     if (!cart.length) return ctx.reply("Корзина пуста 🧺");
+//     let text = "🧺 **Ваша корзина:**\n\n" + cart.map((it, i) => `${i+1}. ${it.title} ${it.price > 0 ? `(${rub(it.price)})` : ""}`).join("\n");
+//     const kb = new InlineKeyboard().text("✅ Оформить всё", "start_checkout").row().text("🧹 Очистить", "clear_cart");
+//     ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
+// });
+
+// bot.callbackQuery("start_checkout", async (ctx) => {
+//     const userId = ctx.from.id;
+//     const last = await getLastUserInfo(userId);
+//     if (last) {
+//         flowState.set(userId, { step: "confirm_data", type: "checkout", data: last });
+//         const text = `Ваши данные:\n\n👤 Имя: ${last.name}\n📞 Тел: ${last.phone}\n📍 Адрес: ${last.address}\n🚗 VIN: ${last.vin}\n\nВсе верно?`;
+//         const kb = new InlineKeyboard().text("✅ Все верно", "data_ok").text("❌ Ввести заново", "data_new");
+//         return ctx.editMessageText(text, { reply_markup: kb });
+//     }
+//     flowState.set(userId, { step: "name", type: "checkout", data: {} });
+//     ctx.editMessageText("Введите **Имя** получателя:", { parse_mode: "Markdown" });
+// });
+
+// bot.callbackQuery("data_ok", async (ctx) => {
+//     const state = flowState.get(ctx.from.id);
+//     if (state) finalizeOrder(ctx, state);
+// });
+
+// bot.callbackQuery("data_new", (ctx) => {
+//     flowState.set(ctx.from.id, { step: "name", type: "checkout", data: {} });
+//     ctx.editMessageText("Введите **Имя** получателя:", { parse_mode: "Markdown" });
+// });
+
+// // --- ТЕКСТОВЫЕ ВВОДЫ ---
+// bot.on("message:text", async (ctx, next) => {
+//     const userId = ctx.from.id;
+
+//     if (isAdmin(ctx) && ctx.session.prepayOrderId) {
+//         const amount = ctx.message.text.replace(/\D/g, "");
+//         const oid = ctx.session.prepayOrderId;
+//         ctx.session.prepayOrderId = null;
+//         const doc = await getDoc();
+//         const { ordersSheet } = await getSheets(doc);
+//         const rows = await ordersSheet.getRows();
+//         const row = rows.find(r => s(r.get("order_id")).includes(oid));
+//         if (row) {
+//             row.set("prepayment", amount);
+//             row.set("admin_status", "prepaid");
+//             await row.save();
+//             ctx.reply(`✅ Предоплата ${amount} ₽ сохранена.`);
+//         }
+//         return;
+//     }
+
+//     const state = flowState.get(userId);
+//     if (!state) return next();
+
+//     const text = ctx.message.text.trim();
+
+//     if (state.type === "custom") {
+//         if (state.step === "wait_oem") {
+//             state.data.oem = text;
+//             state.step = "wait_list";
+//             return ctx.reply("Напишите, что именно нужно (перечень):");
+//         }
+//         if (state.step === "wait_list") {
+//             getCart(userId).push({ title: `Инд. заказ (OEM: ${state.data.oem})`, info: text, price: 0 });
+//             flowState.delete(userId);
+//             return ctx.reply("Запрос добавлен в корзину!", { reply_markup: mainMenuKeyboard() });
+//         }
+//     }
+
+//     if (state.type === "checkout") {
+//         switch (state.step) {
+//             case "name": state.data.name = text; state.step = "phone"; return ctx.reply("Введите **Телефон**:");
+//             case "phone": 
+//                 const digits = normalizePhone(text);
+//                 if (!isValidPhoneDigits(digits)) return ctx.reply("Ошибка номера.");
+//                 state.data.phone = digits; state.step = "vin"; return ctx.reply("Введите **VIN-код**:");
+//             case "vin": state.data.vin = text; state.step = "address"; return ctx.reply("Введите **Адрес доставки**:");
+//             case "address": state.data.address = text; return finalizeOrder(ctx, state);
+//         }
+//     }
+// });
+
+// async function finalizeOrder(ctx, state) {
+//     const userId = ctx.from.id;
+//     const cart = getCart(userId);
+//     const orderId = String(Date.now());
+//     const itemsText = cart.map(it => `- ${it.title}${it.info ? ` [${it.info}]` : ""}`).join("\n");
+//     const total = cart.reduce((sum, i) => sum + i.price, 0);
+
+//     const doc = await getDoc();
+//     const { ordersSheet } = await getSheets(doc);
+//     await ordersSheet.addRow({
+//         "order_id": `'${orderId}`,
+//         "created_at": new Date().toLocaleString("ru-RU"),
+//         "customer": state.data.name,
+//         "phone": state.data.phone,
+//         "address": state.data.address,
+//         "comment": `VIN: ${state.data.vin}`,
+//         "items": itemsText,
+//         "total": total || "Запрос",
+//         "admin_status": "new",
+//         "client_status": "оформлен",
+//         "user_id": String(userId),
+//         "username": ctx.from.username ? `@${ctx.from.username}` : ""
+//     });
+
+//     carts.set(userId, []);
+//     flowState.delete(userId);
+//     const success = `✅ Заказ #${orderId} оформлен!`;
+//     ctx.callbackQuery ? await ctx.editMessageText(success) : await ctx.reply(success, { reply_markup: mainMenuKeyboard() });
+//     await sendAdminCard(orderId);
+// }
+
+// // --- СТАТУСЫ АДМИНА ---
+// bot.callbackQuery(/^ast:(\w+):(\d+)$/, async (ctx) => {
+//     if (!isAdmin(ctx)) return;
+//     const [_, status, oid] = ctx.match;
+//     const doc = await getDoc();
+//     const { ordersSheet } = await getSheets(doc);
+//     const rows = await ordersSheet.getRows();
+//     const row = rows.find(r => s(r.get("order_id")).includes(oid));
+//     if (row) {
+//         row.set("admin_status", status);
+//         await row.save();
+//         ctx.answerCallbackQuery(`Статус изменен на: ${status}`);
+//         // Обновляем карточку админа
+//         const text = `📦 ЗАКАЗ #${oid}\n` +
+//                  `Клиент: ${row.get("customer")}\n` +
+//                  `Тел: ${row.get("phone")}\n` +
+//                  `Адрес: ${row.get("address")}\n` +
+//                  `Комментарий: ${row.get("comment")}\n\n` +
+//                  `Состав:\n${row.get("items")}\n\n` +
+//                  `Итого: ${row.get("total")}\n` +
+//                  `Статус: ${status}\n` +
+//                  `Предоплата: ${row.get("prepayment") || "0"} ₽`;
+//         try { await ctx.editMessageText(text, { reply_markup: adminOrderKeyboard(oid) }); } catch(e) {}
+//     }
+// });
+
+// bot.callbackQuery(/^aprepay:(\d+)$/, async (ctx) => {
+//     if (!isAdmin(ctx)) return;
+//     ctx.session.prepayOrderId = ctx.match[1];
+//     ctx.reply("Введите сумму предоплаты (цифрами):");
+//     ctx.answerCallbackQuery();
+// });
+
+// bot.hears("📦 Мои заказы", async (ctx) => {
+//     const orders = await getUserOrdersFromSheet(ctx.from.id);
+//     if (!orders.length) return ctx.reply("Заказов нет.");
+//     ctx.reply("Ваши последние заказы:\n\n" + orders.slice(0,5).map(o => `#${o.get("order_id")} - ${o.get("admin_status")}`).join("\n"));
+// });
+
+// async function getUserOrdersFromSheet(userId) {
+//     const doc = await getDoc();
+//     const { ordersSheet } = await getSheets(doc);
+//     const rows = await ordersSheet.getRows();
+//     return rows.filter(r => String(r.get("user_id")) === String(userId)).reverse();
+// }
+
+// bot.hears("ℹ️ Поддержка", (ctx) => ctx.reply("Связь с поддержкой: @admin_username"));
+
+// bot.start();
+// console.log("Бот запущен");
+// index.js
 require("dotenv").config();
+
 const { Bot, InlineKeyboard, Keyboard, session } = require("grammy");
 const { GoogleSpreadsheet } = require("google-spreadsheet");
 const { JWT } = require("google-auth-library");
 
 /* ===================== CONFIG ===================== */
-const bot = new Bot(process.env.BOT_TOKEN);
+const BOT_TOKEN = String(process.env.BOT_TOKEN || "").trim();
+if (!BOT_TOKEN) throw new Error("BOT_TOKEN is missing");
+
+const bot = new Bot(BOT_TOKEN);
+
 const ADMIN_ID = String(process.env.ADMIN_ID || "").trim();
 const SHEET_ID = String(process.env.SHEET_ID || "").trim();
-const PRODUCTS_SHEET = process.env.PRODUCTS_SHEET || "products";
-const ORDERS_SHEET = process.env.ORDERS_SHEET || "orders";
 
-bot.use(session({ initial: () => ({ prepayOrderId: null }) }));
+const PRODUCTS_SHEET = String(process.env.PRODUCTS_SHEET || "products").trim();
+const ORDERS_SHEET = String(process.env.ORDERS_SHEET || "orders").trim();
+
+if (!SHEET_ID) {
+  // Не валим процесс сразу, но логируем — каталог/заказы не будут работать
+  console.error("⚠️ SHEET_ID is missing. Google Sheets features will fail.");
+}
+
+/* ===================== SESSION ===================== */
+bot.use(
+  session({
+    initial: () => ({
+      prepayOrderId: null,
+    }),
+  })
+);
 
 /* ===================== UTILS ===================== */
 const s = (x) => String(x ?? "").trim();
-const normalizePhone = (input) => String(input ?? "").replace(/\D/g, "");
+
+const normalizePhoneDigits = (input) => String(input ?? "").replace(/\D/g, "");
 const isValidPhoneDigits = (digits) => /^\d{9,15}$/.test(digits);
+
 const rub = (n) => {
-    const num = Number(String(n).replace(",", "."));
-    return Number.isNaN(num) ? `${n} ₽` : `${num.toLocaleString("ru-RU")} ₽`;
+  const num = Number(String(n).replace(",", "."));
+  return Number.isNaN(num) ? `${n} ₽` : `${num.toLocaleString("ru-RU")} ₽`;
 };
+
 const isAdmin = (ctx) => String(ctx.from?.id || "") === ADMIN_ID;
 
-// Статусы для админа
-const ADMIN_STATUSES = [
-    { key: "new", label: "🆕 Новый" },
-    { key: "contacted", label: "☎️ Связался" },
-    { key: "prepaid", label: "💳 Предоплата" },
-    { key: "ordered", label: "📦 Заказано" },
-    { key: "supplier", label: "🏭 Склад Китай" },
-    { key: "tk", label: "🚚 Склад ТК" },
-    { key: "fromChina", label: "✈️ Из Китая" },
-    { key: "kz", label: "🇰🇿 В КЗ" },
-    { key: "moscow", label: "🏙 В Москве" },
-    { key: "delivered", label: "✅ Вручен" },
-];
+// TRUE/true/1/да/yes — всё считаем активным
+const isActive = (v) => {
+  const x = String(v ?? "").trim().toLowerCase();
+  return ["true", "1", "yes", "y", "да"].includes(x);
+};
 
 function mainMenuKeyboard() {
-    return new Keyboard()
-        .text("🧩 Индивидуальный заказ").text("🛍 Каталог")
-        .row()
-        .text("📦 Мои заказы").text("🧺 Корзина")
-        .row()
-        .text("ℹ️ Поддержка")
-        .resized();
+  return new Keyboard()
+    .text("🧩 Индивидуальный заказ")
+    .text("🛍 Каталог")
+    .row()
+    .text("📦 Мои заказы")
+    .text("🧺 Корзина")
+    .row()
+    .text("ℹ️ Поддержка")
+    .resized();
 }
 
-/* ===================== GOOGLE AUTH ===================== */
+/* ===================== GOOGLE AUTH + CACHE ===================== */
 function makeAuth() {
-    const privateKey = (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-    return new JWT({
-        email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        key: privateKey,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+  const email = String(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "").trim();
+  const privateKeyRaw = String(process.env.GOOGLE_PRIVATE_KEY || "");
+
+  if (!email) throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL is missing");
+  if (!privateKeyRaw) throw new Error("GOOGLE_PRIVATE_KEY is missing");
+
+  // В Fly secrets ключ обычно хранится с \n — превращаем обратно в реальные переводы строк
+  const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
+
+  return new JWT({
+    email,
+    key: privateKey,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
 }
+
+let cachedDoc = null;
+let cachedSheets = null;
+let cacheLoadedAt = 0;
+
+// Обновляем кеш, например раз в 60 секунд
+const CACHE_TTL_MS = 60_000;
 
 async function getDoc() {
-    const doc = new GoogleSpreadsheet(SHEET_ID, makeAuth());
-    await doc.loadInfo();
-    return doc;
+  if (!SHEET_ID) throw new Error("SHEET_ID is missing");
+
+  const now = Date.now();
+  if (cachedDoc && now - cacheLoadedAt < CACHE_TTL_MS) return cachedDoc;
+
+  const doc = new GoogleSpreadsheet(SHEET_ID, makeAuth());
+  await doc.loadInfo();
+
+  cachedDoc = doc;
+  cacheLoadedAt = now;
+  cachedSheets = null; // при обновлении doc сбрасываем sheets cache
+  return doc;
 }
 
 async function getSheets(doc) {
-    const productsSheet = doc.sheetsByTitle[PRODUCTS_SHEET];
-    const ordersSheet = doc.sheetsByTitle[ORDERS_SHEET];
-    await productsSheet.loadHeaderRow();
-    await ordersSheet.loadHeaderRow();
-    return { productsSheet, ordersSheet };
+  const now = Date.now();
+  if (cachedSheets && now - cacheLoadedAt < CACHE_TTL_MS) return cachedSheets;
+
+  const productsSheet = doc.sheetsByTitle[PRODUCTS_SHEET];
+  const ordersSheet = doc.sheetsByTitle[ORDERS_SHEET];
+
+  if (!productsSheet) {
+    throw new Error(
+      `Products sheet not found by title: "${PRODUCTS_SHEET}". Check sheet name in Google Sheets and Fly secrets.`
+    );
+  }
+  if (!ordersSheet) {
+    throw new Error(
+      `Orders sheet not found by title: "${ORDERS_SHEET}". Check sheet name in Google Sheets and Fly secrets.`
+    );
+  }
+
+  await productsSheet.loadHeaderRow();
+  await ordersSheet.loadHeaderRow();
+
+  cachedSheets = { productsSheet, ordersSheet };
+  return cachedSheets;
 }
 
-/* ===================== DATA & STATE ===================== */
-const carts = new Map(); 
-const flowState = new Map(); 
+// Удобная обёртка: всё, что связано с Sheets, через try/catch
+async function withSheets(fn) {
+  try {
+    const doc = await getDoc();
+    const sheets = await getSheets(doc);
+    return await fn(sheets, doc);
+  } catch (err) {
+    console.error("❌ Google Sheets error:", err?.message || err);
+    throw err;
+  }
+}
+
+/* ===================== IN-MEMORY STATE ===================== */
+const carts = new Map(); // userId -> [{title, price, info?}]
+const flowState = new Map(); // userId -> { step, type, data }
 
 function getCart(userId) {
-    if (!carts.has(userId)) carts.set(userId, []);
-    return carts.get(userId);
+  const key = String(userId);
+  if (!carts.has(key)) carts.set(key, []);
+  return carts.get(key);
 }
 
-async function getLastUserInfo(userId) {
-    try {
-        const doc = await getDoc();
-        const { ordersSheet } = await getSheets(doc);
-        const rows = await ordersSheet.getRows();
-        const userRows = rows.filter(r => String(r.get("user_id")) === String(userId)).reverse();
-        if (!userRows.length) return null;
-        const last = userRows[0];
-        let vin = "";
-        const comm = s(last.get("comment"));
-        if (comm.includes("VIN:")) vin = comm.split("VIN:")[1].split("\n")[0].trim();
-        return { 
-            name: s(last.get("customer")), 
-            phone: s(last.get("phone")), 
-            address: s(last.get("address")), 
-            vin: vin 
-        };
-    } catch (e) { return null; }
-}
+/* ===================== ADMIN STATUSES ===================== */
+const ADMIN_STATUSES = [
+  { key: "new", label: "🆕 Новый" },
+  { key: "contacted", label: "☎️ Связался" },
+  { key: "prepaid", label: "💳 Предоплата" },
+  { key: "ordered", label: "📦 Заказано" },
+  { key: "supplier", label: "🏭 Склад Китай" },
+  { key: "tk", label: "🚚 Склад ТК" },
+  { key: "fromChina", label: "✈️ Из Китая" },
+  { key: "kz", label: "🇰🇿 В КЗ" },
+  { key: "moscow", label: "🏙 В Москве" },
+  { key: "delivered", label: "✅ Вручен" },
+];
 
-/* ===================== ADMIN ACTIONS ===================== */
 function adminOrderKeyboard(orderId) {
-    const kb = new InlineKeyboard();
-    ADMIN_STATUSES.forEach((st, idx) => {
-        kb.text(st.label, `ast:${st.key}:${orderId}`);
-        if (idx % 2 !== 0) kb.row();
-    });
-    kb.row().text("💰 Ввести предоплату", `aprepay:${orderId}`);
-    return kb;
+  const kb = new InlineKeyboard();
+  ADMIN_STATUSES.forEach((st, idx) => {
+    kb.text(st.label, `ast:${st.key}:${orderId}`);
+    if (idx % 2 !== 0) kb.row();
+  });
+  kb.row().text("💰 Ввести предоплату", `aprepay:${orderId}`);
+  return kb;
 }
 
 async function sendAdminCard(orderId) {
-    if (!ADMIN_ID) return;
-    const doc = await getDoc();
-    const { ordersSheet } = await getSheets(doc);
+  if (!ADMIN_ID) return;
+
+  await withSheets(async ({ ordersSheet }) => {
     const rows = await ordersSheet.getRows();
-    const row = rows.find(r => s(r.get("order_id")).includes(orderId));
+    const row = rows.find((r) => String(r.get("order_id")).includes(String(orderId)));
     if (!row) return;
 
-    const text = `📦 ЗАКАЗ #${orderId}\n` +
-                 `Клиент: ${row.get("customer")}\n` +
-                 `Тел: ${row.get("phone")}\n` +
-                 `Адрес: ${row.get("address")}\n` +
-                 `Комментарий: ${row.get("comment")}\n\n` +
-                 `Состав:\n${row.get("items")}\n\n` +
-                 `Итого: ${row.get("total")}\n` +
-                 `Статус: ${row.get("admin_status")}\n` +
-                 `Предоплата: ${row.get("prepayment") || "0"} ₽`;
-    
-    const msg = await bot.api.sendMessage(ADMIN_ID, text, { reply_markup: adminOrderKeyboard(orderId) });
+    const text =
+      `📦 ЗАКАЗ #${orderId}\n` +
+      `Клиент: ${row.get("customer")}\n` +
+      `Тел: ${row.get("phone")}\n` +
+      `Адрес: ${row.get("address")}\n` +
+      `Комментарий: ${row.get("comment")}\n\n` +
+      `Состав:\n${row.get("items")}\n\n` +
+      `Итого: ${row.get("total")}\n` +
+      `Статус: ${row.get("admin_status")}\n` +
+      `Предоплата: ${row.get("prepayment") || "0"} ₽`;
+
+    const msg = await bot.api.sendMessage(ADMIN_ID, text, {
+      reply_markup: adminOrderKeyboard(orderId),
+    });
+
     row.set("admin_msg_id", String(msg.message_id));
     await row.save();
+  });
 }
 
-/* ===================== HANDLERS ===================== */
+/* ===================== HELPERS ===================== */
+async function getLastUserInfo(userId) {
+  try {
+    return await withSheets(async ({ ordersSheet }) => {
+      const rows = await ordersSheet.getRows();
+      const userRows = rows
+        .filter((r) => String(r.get("user_id")) === String(userId))
+        .reverse();
 
-bot.command("start", (ctx) => ctx.reply("Приветствуем в магазине автозапчастей!", { reply_markup: mainMenuKeyboard() }));
+      if (!userRows.length) return null;
 
-// --- КАТАЛОГ С КНОПКАМИ НАЗАД ---
+      const last = userRows[0];
+      const comm = s(last.get("comment"));
+
+      let vin = "";
+      if (comm.includes("VIN:")) {
+        vin = comm.split("VIN:")[1].split("\n")[0].trim();
+      }
+
+      return {
+        name: s(last.get("customer")),
+        phone: s(last.get("phone")),
+        address: s(last.get("address")),
+        vin,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function getUserOrdersFromSheet(userId) {
+  return await withSheets(async ({ ordersSheet }) => {
+    const rows = await ordersSheet.getRows();
+    return rows
+      .filter((r) => String(r.get("user_id")) === String(userId))
+      .reverse();
+  });
+}
+
+/* ===================== BASIC COMMANDS ===================== */
+bot.command("start", (ctx) =>
+  ctx.reply("Приветствуем в магазине автозапчастей!", {
+    reply_markup: mainMenuKeyboard(),
+  })
+);
+
+/* ===================== CATALOG FLOW ===================== */
+// Категории
 bot.hears("🛍 Каталог", async (ctx) => {
-    const doc = await getDoc();
-    const { productsSheet } = await getSheets(doc);
-    const rows = await productsSheet.getRows();
-    const cats = [...new Set(rows.map(r => r.get("category")).filter(Boolean))];
-    const kb = new InlineKeyboard();
-    cats.forEach(c => kb.text(c, `cat:${c}`).row());
-    ctx.reply("🗂 Выберите категорию:", { reply_markup: kb });
+  try {
+    await withSheets(async ({ productsSheet }) => {
+      const rows = await productsSheet.getRows();
+
+      const cats = [
+        ...new Set(
+          rows.map((r) => s(r.get("category"))).filter(Boolean)
+        ),
+      ];
+
+      const kb = new InlineKeyboard();
+      cats.forEach((c) => kb.text(c, `cat:${c}`).row());
+
+      await ctx.reply("🗂 Выберите категорию:", { reply_markup: kb });
+    });
+  } catch (e) {
+    await ctx.reply(
+      "Не могу загрузить каталог. Проверь доступ к Google Sheets и названия листов.",
+      { reply_markup: mainMenuKeyboard() }
+    );
+  }
 });
 
 bot.callbackQuery("cats", async (ctx) => {
-    const doc = await getDoc();
-    const { productsSheet } = await getSheets(doc);
-    const rows = await productsSheet.getRows();
-    const cats = [...new Set(rows.map(r => r.get("category")).filter(Boolean))];
-    const kb = new InlineKeyboard();
-    cats.forEach(c => kb.text(c, `cat:${c}`).row());
-    await ctx.editMessageText("🗂 Выберите категорию:", { reply_markup: kb });
-});
+  try {
+    await withSheets(async ({ productsSheet }) => {
+      const rows = await productsSheet.getRows();
+      const cats = [
+        ...new Set(rows.map((r) => s(r.get("category"))).filter(Boolean)),
+      ];
 
-bot.callbackQuery(/^cat:(.+)$/, async (ctx) => {
-    const cat = ctx.match[1];
-    const doc = await getDoc();
-    const { productsSheet } = await getSheets(doc);
-    const rows = await productsSheet.getRows();
-    const kb = new InlineKeyboard();
-    rows.filter(r => r.get("category") === cat && s(r.get("active")).toUpperCase() === "TRUE").forEach(r => {
-        kb.text(`${r.get("title")} - ${rub(r.get("price"))}`, `view_p:${r.get("id")}:${cat}`).row();
+      const kb = new InlineKeyboard();
+      cats.forEach((c) => kb.text(c, `cat:${c}`).row());
+
+      await ctx.editMessageText("🗂 Выберите категорию:", { reply_markup: kb });
     });
-    kb.text("⬅️ Назад в категории", "cats");
-    await ctx.editMessageText(`📦 Товары в категории ${cat}:`, { reply_markup: kb });
+  } catch (e) {
+    await ctx.answerCallbackQuery({ text: "Ошибка загрузки категорий" });
+  }
 });
 
-bot.callbackQuery(/^view_p:(\d+):(.+)$/, async (ctx) => {
-    const [_, pid, cat] = ctx.match;
-    const doc = await getDoc();
-    const { productsSheet } = await getSheets(doc);
-    const rows = await productsSheet.getRows();
-    const p = rows.find(r => r.get("id") === pid);
-    if (!p) return ctx.answerCallbackQuery("Товар не найден");
+// Товары в категории
+bot.callbackQuery(/^cat:(.+)$/, async (ctx) => {
+  const cat = ctx.match[1];
 
-    const text = `**${p.get("title")}**\n\n${p.get("description") || ""}\n\nЦена: ${rub(p.get("price"))}`;
-    const kb = new InlineKeyboard()
-        .text("➕ В корзину", `add_p:${pid}`)
+  try {
+    await withSheets(async ({ productsSheet }) => {
+      const rows = await productsSheet.getRows();
+
+      const kb = new InlineKeyboard();
+
+      rows
+        .filter(
+          (r) =>
+            s(r.get("category")) === s(cat) &&
+            isActive(r.get("active"))
+        )
+        .forEach((r) => {
+          const id = s(r.get("id")); // важно: приводим к строке
+          const title = s(r.get("title"));
+          const price = r.get("price");
+
+          if (id && title) {
+            kb.text(`${title} - ${rub(price)}`, `view_p:${id}:${cat}`).row();
+          }
+        });
+
+      kb.text("⬅️ Назад в категории", "cats");
+
+      await ctx.editMessageText(`📦 Товары в категории ${cat}:`, {
+        reply_markup: kb,
+      });
+    });
+  } catch (e) {
+    await ctx.answerCallbackQuery({ text: "Ошибка загрузки товаров" });
+  }
+});
+
+// Карточка товара
+bot.callbackQuery(/^view_p:([^:]+):(.+)$/, async (ctx) => {
+  const pid = ctx.match[1];
+  const cat = ctx.match[2];
+
+  try {
+    await withSheets(async ({ productsSheet }) => {
+      const rows = await productsSheet.getRows();
+
+      // FIX: id число/строка — сравниваем строками
+      const p = rows.find((r) => s(r.get("id")) === s(pid));
+
+      if (!p) {
+        await ctx.answerCallbackQuery({ text: "Товар не найден" });
+        return;
+      }
+
+      const title = s(p.get("title"));
+      const desc = s(p.get("description"));
+      const price = p.get("price");
+
+      const text = `**${title}**\n\n${desc || ""}\n\nЦена: ${rub(price)}`;
+
+      const kb = new InlineKeyboard()
+        .text("➕ В корзину", `add_p:${s(pid)}`)
         .row()
         .text("⬅️ Назад к товарам", `cat:${cat}`);
 
-    if (p.get("tg_file_id")) {
-        await ctx.replyWithPhoto(p.get("tg_file_id"), { caption: text, parse_mode: "Markdown", reply_markup: kb });
-    } else {
-        await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: kb });
-    }
+      const photoId = s(p.get("tg_file_id"));
+
+      // Если показываем фото — лучше отправить новое сообщение
+      if (photoId) {
+        await ctx.replyWithPhoto(photoId, {
+          caption: text,
+          parse_mode: "Markdown",
+          reply_markup: kb,
+        });
+        // И закрываем “часики” у callback
+        await ctx.answerCallbackQuery();
+      } else {
+        await ctx.editMessageText(text, {
+          parse_mode: "Markdown",
+          reply_markup: kb,
+        });
+      }
+    });
+  } catch (e) {
+    await ctx.answerCallbackQuery({ text: "Ошибка открытия товара" });
+  }
 });
 
-bot.callbackQuery(/^add_p:(\d+)$/, async (ctx) => {
-    const pid = ctx.match[1];
-    const doc = await getDoc();
-    const { productsSheet } = await getSheets(doc);
-    const rows = await productsSheet.getRows();
-    const p = rows.find(r => r.get("id") === pid);
-    if (p) {
-        getCart(ctx.from.id).push({ title: p.get("title"), price: Number(p.get("price")) || 0 });
-        ctx.answerCallbackQuery({ text: "✅ Добавлено в корзину!" });
-    }
+// Добавить в корзину
+bot.callbackQuery(/^add_p:(.+)$/, async (ctx) => {
+  const pid = ctx.match[1];
+
+  try {
+    await withSheets(async ({ productsSheet }) => {
+      const rows = await productsSheet.getRows();
+
+      // FIX: id число/строка
+      const p = rows.find((r) => s(r.get("id")) === s(pid));
+      if (!p) {
+        await ctx.answerCallbackQuery({ text: "Товар не найден" });
+        return;
+      }
+
+      const item = {
+        title: s(p.get("title")),
+        price: Number(String(p.get("price")).replace(",", ".")) || 0,
+      };
+
+      getCart(ctx.from.id).push(item);
+
+      await ctx.answerCallbackQuery({ text: "✅ Добавлено в корзину!" });
+    });
+  } catch (e) {
+    await ctx.answerCallbackQuery({ text: "Ошибка добавления в корзину" });
+  }
 });
 
-// --- ИНДИВИДУАЛЬНЫЙ ЗАКАЗ ---
+/* ===================== CUSTOM ORDER FLOW ===================== */
 bot.hears("🧩 Индивидуальный заказ", (ctx) => {
-    flowState.set(ctx.from.id, { step: "wait_oem", data: {}, type: "custom" });
-    ctx.reply("Введите OEM номер запчасти (или '-', если не знаете):");
+  flowState.set(String(ctx.from.id), { step: "wait_oem", data: {}, type: "custom" });
+  ctx.reply("Введите OEM номер запчасти (или '-', если не знаете):");
 });
 
-// --- КОРЗИНА И ОФОРМЛЕНИЕ ---
+/* ===================== CART + CHECKOUT ===================== */
 bot.hears("🧺 Корзина", async (ctx) => {
-    const cart = getCart(ctx.from.id);
-    if (!cart.length) return ctx.reply("Корзина пуста 🧺");
-    let text = "🧺 **Ваша корзина:**\n\n" + cart.map((it, i) => `${i+1}. ${it.title} ${it.price > 0 ? `(${rub(it.price)})` : ""}`).join("\n");
-    const kb = new InlineKeyboard().text("✅ Оформить всё", "start_checkout").row().text("🧹 Очистить", "clear_cart");
-    ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
+  const cart = getCart(ctx.from.id);
+  if (!cart.length) return ctx.reply("Корзина пуста 🧺", { reply_markup: mainMenuKeyboard() });
+
+  const lines = cart.map((it, i) => {
+    const pricePart = it.price > 0 ? `(${rub(it.price)})` : "";
+    const infoPart = it.info ? ` [${it.info}]` : "";
+    return `${i + 1}. ${it.title}${infoPart} ${pricePart}`.trim();
+  });
+
+  const total = cart.reduce((sum, it) => sum + (Number(it.price) || 0), 0);
+
+  const text = `🧺 **Ваша корзина:**\n\n${lines.join("\n")}\n\n**Итого:** ${total ? rub(total) : "Запрос"}`;
+
+  const kb = new InlineKeyboard()
+    .text("✅ Оформить всё", "start_checkout")
+    .row()
+    .text("🧹 Очистить", "clear_cart");
+
+  ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
+});
+
+bot.callbackQuery("clear_cart", async (ctx) => {
+  carts.set(String(ctx.from.id), []);
+  await ctx.editMessageText("Корзина очищена ✅");
 });
 
 bot.callbackQuery("start_checkout", async (ctx) => {
-    const userId = ctx.from.id;
-    const last = await getLastUserInfo(userId);
-    if (last) {
-        flowState.set(userId, { step: "confirm_data", type: "checkout", data: last });
-        const text = `Ваши данные:\n\n👤 Имя: ${last.name}\n📞 Тел: ${last.phone}\n📍 Адрес: ${last.address}\n🚗 VIN: ${last.vin}\n\nВсе верно?`;
-        const kb = new InlineKeyboard().text("✅ Все верно", "data_ok").text("❌ Ввести заново", "data_new");
-        return ctx.editMessageText(text, { reply_markup: kb });
-    }
-    flowState.set(userId, { step: "name", type: "checkout", data: {} });
-    ctx.editMessageText("Введите **Имя** получателя:", { parse_mode: "Markdown" });
+  const userId = String(ctx.from.id);
+  const last = await getLastUserInfo(userId);
+
+  if (last) {
+    flowState.set(userId, { step: "confirm_data", type: "checkout", data: last });
+
+    const text =
+      `Ваши данные:\n\n` +
+      `👤 Имя: ${last.name}\n` +
+      `📞 Тел: ${last.phone}\n` +
+      `📍 Адрес: ${last.address}\n` +
+      `🚗 VIN: ${last.vin}\n\n` +
+      `Все верно?`;
+
+    const kb = new InlineKeyboard()
+      .text("✅ Все верно", "data_ok")
+      .text("❌ Ввести заново", "data_new");
+
+    return ctx.editMessageText(text, { reply_markup: kb });
+  }
+
+  flowState.set(userId, { step: "name", type: "checkout", data: {} });
+  return ctx.editMessageText("Введите **Имя** получателя:", { parse_mode: "Markdown" });
 });
 
 bot.callbackQuery("data_ok", async (ctx) => {
-    const state = flowState.get(ctx.from.id);
-    if (state) finalizeOrder(ctx, state);
+  const state = flowState.get(String(ctx.from.id));
+  if (state) await finalizeOrder(ctx, state);
 });
 
-bot.callbackQuery("data_new", (ctx) => {
-    flowState.set(ctx.from.id, { step: "name", type: "checkout", data: {} });
-    ctx.editMessageText("Введите **Имя** получателя:", { parse_mode: "Markdown" });
+bot.callbackQuery("data_new", async (ctx) => {
+  flowState.set(String(ctx.from.id), { step: "name", type: "checkout", data: {} });
+  await ctx.editMessageText("Введите **Имя** получателя:", { parse_mode: "Markdown" });
 });
 
-// --- ТЕКСТОВЫЕ ВВОДЫ ---
+/* ===================== TEXT INPUT HANDLER ===================== */
 bot.on("message:text", async (ctx, next) => {
-    const userId = ctx.from.id;
+  const userId = String(ctx.from.id);
 
-    if (isAdmin(ctx) && ctx.session.prepayOrderId) {
-        const amount = ctx.message.text.replace(/\D/g, "");
-        const oid = ctx.session.prepayOrderId;
-        ctx.session.prepayOrderId = null;
-        const doc = await getDoc();
-        const { ordersSheet } = await getSheets(doc);
+  // Админ вводит предоплату
+  if (isAdmin(ctx) && ctx.session.prepayOrderId) {
+    const amount = String(ctx.message.text).replace(/\D/g, "");
+    const oid = ctx.session.prepayOrderId;
+
+    ctx.session.prepayOrderId = null;
+
+    try {
+      await withSheets(async ({ ordersSheet }) => {
         const rows = await ordersSheet.getRows();
-        const row = rows.find(r => s(r.get("order_id")).includes(oid));
+        const row = rows.find((r) => String(r.get("order_id")).includes(String(oid)));
         if (row) {
-            row.set("prepayment", amount);
-            row.set("admin_status", "prepaid");
-            await row.save();
-            ctx.reply(`✅ Предоплата ${amount} ₽ сохранена.`);
+          row.set("prepayment", amount);
+          row.set("admin_status", "prepaid");
+          await row.save();
+          await ctx.reply(`✅ Предоплата ${amount} ₽ сохранена.`);
+        } else {
+          await ctx.reply("Не нашёл заказ по ID.");
         }
-        return;
+      });
+    } catch {
+      await ctx.reply("Ошибка сохранения предоплаты (Sheets).");
     }
+    return;
+  }
 
-    const state = flowState.get(userId);
-    if (!state) return next();
+  const state = flowState.get(userId);
+  if (!state) return next();
 
-    const text = ctx.message.text.trim();
+  const text = ctx.message.text.trim();
 
-    if (state.type === "custom") {
-        if (state.step === "wait_oem") {
-            state.data.oem = text;
-            state.step = "wait_list";
-            return ctx.reply("Напишите, что именно нужно (перечень):");
-        }
-        if (state.step === "wait_list") {
-            getCart(userId).push({ title: `Инд. заказ (OEM: ${state.data.oem})`, info: text, price: 0 });
-            flowState.delete(userId);
-            return ctx.reply("Запрос добавлен в корзину!", { reply_markup: mainMenuKeyboard() });
-        }
+  // Индивидуальный заказ
+  if (state.type === "custom") {
+    if (state.step === "wait_oem") {
+      state.data.oem = text;
+      state.step = "wait_list";
+      return ctx.reply("Напишите, что именно нужно (перечень):");
     }
-
-    if (state.type === "checkout") {
-        switch (state.step) {
-            case "name": state.data.name = text; state.step = "phone"; return ctx.reply("Введите **Телефон**:");
-            case "phone": 
-                const digits = normalizePhone(text);
-                if (!isValidPhoneDigits(digits)) return ctx.reply("Ошибка номера.");
-                state.data.phone = digits; state.step = "vin"; return ctx.reply("Введите **VIN-код**:");
-            case "vin": state.data.vin = text; state.step = "address"; return ctx.reply("Введите **Адрес доставки**:");
-            case "address": state.data.address = text; return finalizeOrder(ctx, state);
-        }
+    if (state.step === "wait_list") {
+      getCart(userId).push({
+        title: `Инд. заказ (OEM: ${state.data.oem})`,
+        info: text,
+        price: 0,
+      });
+      flowState.delete(userId);
+      return ctx.reply("Запрос добавлен в корзину!", { reply_markup: mainMenuKeyboard() });
     }
+  }
+
+  // Оформление
+  if (state.type === "checkout") {
+    switch (state.step) {
+      case "name":
+        state.data.name = text;
+        state.step = "phone";
+        return ctx.reply("Введите **Телефон**:", { parse_mode: "Markdown" });
+
+      case "phone": {
+        const digits = normalizePhoneDigits(text);
+        if (!isValidPhoneDigits(digits)) return ctx.reply("Ошибка номера. Введите 9–15 цифр.");
+        state.data.phone = digits;
+        state.step = "vin";
+        return ctx.reply("Введите **VIN-код** (или '-', если нет):", { parse_mode: "Markdown" });
+      }
+
+      case "vin":
+        state.data.vin = text;
+        state.step = "address";
+        return ctx.reply("Введите **Адрес доставки**:", { parse_mode: "Markdown" });
+
+      case "address":
+        state.data.address = text;
+        return finalizeOrder(ctx, state);
+    }
+  }
 });
 
+/* ===================== ORDER FINALIZE ===================== */
 async function finalizeOrder(ctx, state) {
-    const userId = ctx.from.id;
-    const cart = getCart(userId);
-    const orderId = String(Date.now());
-    const itemsText = cart.map(it => `- ${it.title}${it.info ? ` [${it.info}]` : ""}`).join("\n");
-    const total = cart.reduce((sum, i) => sum + i.price, 0);
+  const userId = String(ctx.from.id);
+  const cart = getCart(userId);
 
-    const doc = await getDoc();
-    const { ordersSheet } = await getSheets(doc);
-    await ordersSheet.addRow({
-        "order_id": `'${orderId}`,
-        "created_at": new Date().toLocaleString("ru-RU"),
-        "customer": state.data.name,
-        "phone": state.data.phone,
-        "address": state.data.address,
-        "comment": `VIN: ${state.data.vin}`,
-        "items": itemsText,
-        "total": total || "Запрос",
-        "admin_status": "new",
-        "client_status": "оформлен",
-        "user_id": String(userId),
-        "username": ctx.from.username ? `@${ctx.from.username}` : ""
-    });
-
-    carts.set(userId, []);
+  if (!cart.length) {
     flowState.delete(userId);
-    const success = `✅ Заказ #${orderId} оформлен!`;
-    ctx.callbackQuery ? await ctx.editMessageText(success) : await ctx.reply(success, { reply_markup: mainMenuKeyboard() });
-    await sendAdminCard(orderId);
+    return ctx.reply("Корзина пуста 🧺", { reply_markup: mainMenuKeyboard() });
+  }
+
+  const orderId = String(Date.now());
+  const itemsText = cart
+    .map((it) => `- ${it.title}${it.info ? ` [${it.info}]` : ""}`)
+    .join("\n");
+
+  const totalNum = cart.reduce((sum, it) => sum + (Number(it.price) || 0), 0);
+
+  try {
+    await withSheets(async ({ ordersSheet }) => {
+      await ordersSheet.addRow({
+        order_id: `'${orderId}`, // чтобы Sheets не превратил в число/экспоненту
+        created_at: new Date().toLocaleString("ru-RU"),
+        customer: state.data.name,
+        phone: state.data.phone,
+        address: state.data.address,
+        comment: `VIN: ${state.data.vin || "-"}`,
+        items: itemsText,
+        total: totalNum ? String(totalNum) : "Запрос",
+        admin_status: "new",
+        client_status: "оформлен",
+        user_id: String(userId),
+        username: ctx.from.username ? `@${ctx.from.username}` : "",
+      });
+    });
+  } catch (e) {
+    console.error("❌ finalizeOrder error:", e?.message || e);
+    return ctx.reply(
+      "Не удалось оформить заказ (ошибка Google Sheets). Проверь доступы сервисного аккаунта и SHEET_ID.",
+      { reply_markup: mainMenuKeyboard() }
+    );
+  }
+
+  // очищаем
+  carts.set(userId, []);
+  flowState.delete(userId);
+
+  const success = `✅ Заказ #${orderId} оформлен!`;
+
+  if (ctx.callbackQuery) {
+    await ctx.editMessageText(success);
+  } else {
+    await ctx.reply(success, { reply_markup: mainMenuKeyboard() });
+  }
+
+  await sendAdminCard(orderId);
 }
 
-// --- СТАТУСЫ АДМИНА ---
+/* ===================== ADMIN CALLBACKS ===================== */
 bot.callbackQuery(/^ast:(\w+):(\d+)$/, async (ctx) => {
-    if (!isAdmin(ctx)) return;
-    const [_, status, oid] = ctx.match;
-    const doc = await getDoc();
-    const { ordersSheet } = await getSheets(doc);
-    const rows = await ordersSheet.getRows();
-    const row = rows.find(r => s(r.get("order_id")).includes(oid));
-    if (row) {
-        row.set("admin_status", status);
-        await row.save();
-        ctx.answerCallbackQuery(`Статус изменен на: ${status}`);
-        // Обновляем карточку админа
-        const text = `📦 ЗАКАЗ #${oid}\n` +
-                 `Клиент: ${row.get("customer")}\n` +
-                 `Тел: ${row.get("phone")}\n` +
-                 `Адрес: ${row.get("address")}\n` +
-                 `Комментарий: ${row.get("comment")}\n\n` +
-                 `Состав:\n${row.get("items")}\n\n` +
-                 `Итого: ${row.get("total")}\n` +
-                 `Статус: ${status}\n` +
-                 `Предоплата: ${row.get("prepayment") || "0"} ₽`;
-        try { await ctx.editMessageText(text, { reply_markup: adminOrderKeyboard(oid) }); } catch(e) {}
-    }
+  if (!isAdmin(ctx)) return;
+
+  const status = ctx.match[1];
+  const oid = ctx.match[2];
+
+  try {
+    await withSheets(async ({ ordersSheet }) => {
+      const rows = await ordersSheet.getRows();
+      const row = rows.find((r) => String(r.get("order_id")).includes(String(oid)));
+
+      if (!row) {
+        await ctx.answerCallbackQuery({ text: "Заказ не найден" });
+        return;
+      }
+
+      row.set("admin_status", status);
+      await row.save();
+
+      await ctx.answerCallbackQuery({ text: `Статус: ${status}` });
+
+      const text =
+        `📦 ЗАКАЗ #${oid}\n` +
+        `Клиент: ${row.get("customer")}\n` +
+        `Тел: ${row.get("phone")}\n` +
+        `Адрес: ${row.get("address")}\n` +
+        `Комментарий: ${row.get("comment")}\n\n` +
+        `Состав:\n${row.get("items")}\n\n` +
+        `Итого: ${row.get("total")}\n` +
+        `Статус: ${status}\n` +
+        `Предоплата: ${row.get("prepayment") || "0"} ₽`;
+
+      try {
+        await ctx.editMessageText(text, { reply_markup: adminOrderKeyboard(oid) });
+      } catch (_) {}
+    });
+  } catch {
+    await ctx.answerCallbackQuery({ text: "Ошибка (Sheets)" });
+  }
 });
 
 bot.callbackQuery(/^aprepay:(\d+)$/, async (ctx) => {
-    if (!isAdmin(ctx)) return;
-    ctx.session.prepayOrderId = ctx.match[1];
-    ctx.reply("Введите сумму предоплаты (цифрами):");
-    ctx.answerCallbackQuery();
+  if (!isAdmin(ctx)) return;
+  ctx.session.prepayOrderId = ctx.match[1];
+  await ctx.reply("Введите сумму предоплаты (цифрами):");
+  await ctx.answerCallbackQuery();
 });
 
+/* ===================== MY ORDERS ===================== */
 bot.hears("📦 Мои заказы", async (ctx) => {
+  try {
     const orders = await getUserOrdersFromSheet(ctx.from.id);
-    if (!orders.length) return ctx.reply("Заказов нет.");
-    ctx.reply("Ваши последние заказы:\n\n" + orders.slice(0,5).map(o => `#${o.get("order_id")} - ${o.get("admin_status")}`).join("\n"));
+    if (!orders.length) return ctx.reply("Заказов нет.", { reply_markup: mainMenuKeyboard() });
+
+    const text =
+      "Ваши последние заказы:\n\n" +
+      orders
+        .slice(0, 5)
+        .map((o) => `#${o.get("order_id")} — ${o.get("admin_status")}`)
+        .join("\n");
+
+    await ctx.reply(text, { reply_markup: mainMenuKeyboard() });
+  } catch {
+    await ctx.reply("Не могу получить заказы (Sheets).", { reply_markup: mainMenuKeyboard() });
+  }
 });
 
-async function getUserOrdersFromSheet(userId) {
-    const doc = await getDoc();
-    const { ordersSheet } = await getSheets(doc);
-    const rows = await ordersSheet.getRows();
-    return rows.filter(r => String(r.get("user_id")) === String(userId)).reverse();
-}
+/* ===================== SUPPORT ===================== */
+bot.hears("ℹ️ Поддержка", (ctx) =>
+  ctx.reply("Связь с поддержкой: @admin_username", { reply_markup: mainMenuKeyboard() })
+);
 
-bot.hears("ℹ️ Поддержка", (ctx) => ctx.reply("Связь с поддержкой: @admin_username"));
+/* ===================== GLOBAL ERROR HANDLING ===================== */
+bot.catch((err) => {
+  console.error("❌ Bot error:", err?.error?.message || err?.message || err);
+});
 
+/* ===================== START ===================== */
 bot.start();
-console.log("Бот запущен");
+console.log("✅ Bot started");
